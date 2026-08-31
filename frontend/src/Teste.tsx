@@ -1,10 +1,12 @@
 import { useState} from "react"
 import { ENV } from "./config/env.ts"
+import type { ApiResponse } from "./types/apiResponse.ts"
 
 function Teste() {
 
   const [mensagem, setMensagem] = useState("Bom dia")
   const [inputValor, setInputValor] = useState("")
+  const [erroMensagem, setErroMensagem] = useState("")
 
   async function chamarBackend(){
     try {
@@ -13,15 +15,30 @@ function Teste() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ texto: inputValor }),
+        body: JSON.stringify({ mensagem: inputValor }),
       })
 
-      const dados = await response.json()
-      setMensagem(dados.resposta)
+      const dados: ApiResponse<{ resposta: string }> = await response.json()
+      
+      if(dados.success === false){
+        let mensagemErroFinal = dados.message
+
+        if(dados.issues && dados.issues.length > 0){
+          const detalhesIssues = dados.issues
+            .map(issue => `${issue.field || 'Campo'}: ${issue.message}`)
+            .join(', ')
+
+            mensagemErroFinal += `.Detalhes: ${detalhesIssues}`
+        }
+        setErroMensagem(mensagemErroFinal);
+        return
+      }
+
+      setMensagem(dados.data.resposta)
 
     } catch (erro) {
       console.error("Erro ao comunicar com o backend:", erro)
-      setMensagem("Erro de comunicação")
+      setMensagem("Erro de comunicação. Tente novamente mais tarde")
     }
   }
 
@@ -41,10 +58,10 @@ function Teste() {
       
         <button 
           className="border-2 m-5 p-5 rounded-2xl bg-green-300 font-bold hover:bg-green-400 active:bg-green-200 cursor-pointer" 
-          onClick={chamarBackend}
-        >
+          onClick={chamarBackend}>
           Enviar
         </button>
+        <span>{erroMensagem}</span>
       </div>
     </>
   )
